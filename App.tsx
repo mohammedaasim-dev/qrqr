@@ -42,6 +42,7 @@ const App: React.FC = () => {
   const [currentDay, setCurrentDay] = useState<1 | 2>(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [manualGuest, setManualGuest] = useState({ id: '', name: '', email: '', phone: '', category: 'General' });
 
   // Initial Load
   useEffect(() => {
@@ -127,7 +128,7 @@ const App: React.FC = () => {
         reader.readAsDataURL(file);
         const base64Data = await base64Promise;
 
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey: (import.meta as any).env.VITE_API_KEY });
         const response = await ai.models.generateContent({
           model: 'gemini-3-flash-preview',
           contents: [{
@@ -172,6 +173,21 @@ const App: React.FC = () => {
       alert("Error processing file. Please ensure it's a valid CSV or PDF.");
       setIsProcessing(false);
     }
+  };
+
+  const handleAddManualGuest = () => {
+    if (!manualGuest.id.trim() || !manualGuest.name.trim()) {
+      alert('ID and Name are required.');
+      return;
+    }
+    const existing = guests.find(g => g.id.toLowerCase() === manualGuest.id.toLowerCase());
+    if (existing) {
+      alert('Guest with this ID already exists.');
+      return;
+    }
+    setGuests(prev => [...prev, { ...manualGuest, id: manualGuest.id.trim(), name: manualGuest.name.trim(), email: manualGuest.email.trim(), phone: manualGuest.phone.trim(), category: manualGuest.category.trim() }]);
+    setManualGuest({ id: '', name: '', email: '', phone: '', category: 'General' });
+    alert('Guest added successfully.');
   };
 
   const handleScan = useCallback((decodedText: string): ScanResult => {
@@ -355,7 +371,7 @@ const App: React.FC = () => {
                 <p className="text-slate-500">Import your 10,000 guest CSV from Google Sheets.</p>
               </header>
 
-              <div className="grid md:grid-cols-2 gap-8">
+              <div className="grid md:grid-cols-3 gap-8">
                 <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
                   <h3 className="font-bold text-lg mb-4">Bulk Import</h3>
                   <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".csv,.pdf" />
@@ -372,14 +388,24 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="bg-slate-900 p-8 rounded-3xl text-white shadow-xl">
-                    <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><ShieldCheck className="text-blue-400"/> System Health</h3>
-                    <p className="text-sm text-slate-400 mb-6">Database is currently holding {guests.length.toLocaleString()} entries locally. For large events, use a dedicated high-performance tablet.</p>
-                    <button onClick={() => { if(window.confirm('Wipe everything?')) { storageService.clearAll(); setGuests([]); setAttendance({}); } }} className="w-full bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 border border-red-600/30">
-                      <Trash2 size={18}/> Factory Reset System
-                    </button>
+                <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                  <h3 className="font-bold text-lg mb-4">Manual Registration</h3>
+                  <div className="space-y-4">
+                    <input type="text" placeholder="ID" className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={manualGuest.id} onChange={(e) => setManualGuest(prev => ({ ...prev, id: e.target.value }))} />
+                    <input type="text" placeholder="Name" className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={manualGuest.name} onChange={(e) => setManualGuest(prev => ({ ...prev, name: e.target.value }))} />
+                    <input type="email" placeholder="Email" className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={manualGuest.email} onChange={(e) => setManualGuest(prev => ({ ...prev, email: e.target.value }))} />
+                    <input type="tel" placeholder="Phone" className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={manualGuest.phone} onChange={(e) => setManualGuest(prev => ({ ...prev, phone: e.target.value }))} />
+                    <input type="text" placeholder="Category" className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={manualGuest.category} onChange={(e) => setManualGuest(prev => ({ ...prev, category: e.target.value }))} />
+                    <button onClick={handleAddManualGuest} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors">Add Guest</button>
                   </div>
+                </div>
+
+                <div className="bg-slate-900 p-8 rounded-3xl text-white shadow-xl">
+                  <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><ShieldCheck className="text-blue-400"/> System Health</h3>
+                  <p className="text-sm text-slate-400 mb-6">Database is currently holding {guests.length.toLocaleString()} entries locally. For large events, use a dedicated high-performance tablet.</p>
+                  <button onClick={() => { if(window.confirm('Wipe everything?')) { storageService.clearAll(); setGuests([]); setAttendance({}); } }} className="w-full bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 border border-red-600/30">
+                    <Trash2 size={18}/> Factory Reset System
+                  </button>
                 </div>
               </div>
             </div>
