@@ -250,7 +250,7 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error(error);
-      alert('Error importing from Google Sheets. Ensure the sheet is public and the range is correct.');
+      alert(`Error importing from Google Sheets: ${error.message}. Ensure the sheet is public, the range is correct, and the API key has Google Sheets API enabled.`);
     }
     setIsProcessing(false);
   };
