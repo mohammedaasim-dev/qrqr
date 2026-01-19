@@ -121,6 +121,11 @@ const App: React.FC = () => {
         };
         reader.readAsText(file);
       } else if (fileExt === 'pdf') {
+        if (!(import.meta as any).env.VITE_API_KEY) {
+          alert("PDF processing requires VITE_API_KEY. Please set it in your .env file.");
+          setIsProcessing(false);
+          return;
+        }
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve) => {
           reader.onload = () => resolve((reader.result as string).split(',')[1]);
