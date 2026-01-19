@@ -258,26 +258,55 @@ const App: React.FC = () => {
   const handleScan = useCallback((decodedText: string): ScanResult => {
     // 1. Hard sanitization: remove all non-printable/control characters
     const scannedRaw = decodedText.replace(/[^\x20-\x7E]/g, "").trim();
-    
-    // 2. Deep ID Extraction (URLs, JSON, or Prefixes)
-    let idToFind = scannedRaw;
-    if (scannedRaw.includes('/') || scannedRaw.includes('?')) {
-      const parts = scannedRaw.split(/[/?=]/);
-      idToFind = parts[parts.length - 1] || scannedRaw;
+
+    let scannedGuest: Guest | null = null;
+
+    // Try to parse as JSON (new QR format)
+    try {
+      const parsed = JSON.parse(scannedRaw);
+      if (parsed.id && parsed.name) {
+        scannedGuest = parsed as Guest;
+      }
+    } catch (e) {
+      // Not JSON, treat as ID
     }
 
-    // 3. Robust Case-Insensitive Search
-    const guest = guests.find(g => 
-      g.id.toLowerCase() === idToFind.toLowerCase() || 
-      g.id.toLowerCase() === scannedRaw.toLowerCase()
-    );
+    if (scannedGuest) {
+      // Use the embedded guest data
+      const guest = scannedGuest;
+      // Still check if exists in registry for attendance
+      const existingGuest = guests.find(g => g.id.toLowerCase() === guest.id.toLowerCase());
+      if (!existingGuest) {
+        // If not in registry, perhaps add or deny
+        return {
+          success: false,
+          message: `Guest not registered: ${guest.name}`
+        };
+      }
+    } else {
+      // Legacy: treat as ID
+      // 2. Deep ID Extraction (URLs, JSON, or Prefixes)
+      let idToFind = scannedRaw;
+      if (scannedRaw.includes('/') || scannedRaw.includes('?')) {
+        const parts = scannedRaw.split(/[/?=]/);
+        idToFind = parts[parts.length - 1] || scannedRaw;
+      }
 
-    if (!guest) {
-      return { 
-        success: false, 
-        message: `ID Not Found: "${scannedRaw.substring(0, 15)}${scannedRaw.length > 15 ? '...' : ''}"` 
-      };
+      // 3. Robust Case-Insensitive Search
+      scannedGuest = guests.find(g =>
+        g.id.toLowerCase() === idToFind.toLowerCase() ||
+        g.id.toLowerCase() === scannedRaw.toLowerCase()
+      );
+
+      if (!scannedGuest) {
+        return {
+          success: false,
+          message: `ID Not Found: "${scannedRaw.substring(0, 15)}${scannedRaw.length > 15 ? '...' : ''}"`
+        };
+      }
     }
+
+    const guest = scannedGuest;
 
     const record = attendance[guest.id] || { guestId: guest.id, day1: false, day2: false };
     const dayKey = currentDay === 1 ? 'day1' : 'day2';

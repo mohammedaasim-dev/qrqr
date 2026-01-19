@@ -1,7 +1,7 @@
 
 import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Download, User, Trash2 } from 'lucide-react';
+import { Download, User, Trash2, Mail } from 'lucide-react';
 import { Guest } from '../types';
 
 interface QRCardProps {
@@ -41,13 +41,34 @@ const QRCard: React.FC<QRCardProps> = ({ guest, onDelete }) => {
     }
   };
 
+  const sendEmail = () => {
+    if (!guest.email) {
+      alert('No email address available for this guest.');
+      return;
+    }
+    const subject = encodeURIComponent('Your Event Pass');
+    const body = encodeURIComponent(`Dear ${guest.name},
+
+We are looking forward to welcoming you on 22nd & 23rd January, for Prerana 2026.
+
+Date & Time: 22nd and 23rd Jan 2026, 2:30 PM Onwards.
+Venue: GITAM Bengaluru Campus
+
+Entry QR Code: Please find the attached PNG file with your QR code. Present this at the entrance.
+
+Best regards,
+Event Team`);
+    const bcc = 'smdaasim2@gmail.com';
+    window.open(`mailto:${guest.email}?subject=${subject}&body=${body}&bcc=${bcc}`);
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden group hover:shadow-md transition-shadow relative">
       <div className="p-6 flex flex-col items-center">
         <div className="mb-4 bg-slate-50 p-4 rounded-xl">
-          <QRCodeSVG 
+          <QRCodeSVG
             ref={svgRef}
-            value={guest.id} 
+            value={JSON.stringify({ id: guest.id, name: guest.name, email: guest.email, phone: guest.phone, category: guest.category })}
             size={180}
             level="H"
             includeMargin={true}
@@ -61,27 +82,42 @@ const QRCard: React.FC<QRCardProps> = ({ guest, onDelete }) => {
             <User size={12} />
             <span>ID: {guest.id}</span>
           </div>
+          {guest.email && (
+            <div className="mt-1 text-xs text-blue-600">
+              <a href={`mailto:${guest.email}`} className="hover:underline">{guest.email}</a>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 w-full flex flex-col gap-2">
-          <button 
-            onClick={downloadQR}
-            className="w-full py-2 bg-slate-900 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors text-sm font-medium"
-          >
-            <Download size={16} />
-            Download Pass
-          </button>
-          <button 
-            onClick={handleDelete}
-            className="w-full py-2 bg-red-50 text-red-600 rounded-lg flex items-center justify-center gap-2 hover:bg-red-100 transition-colors text-sm font-medium border border-red-100"
-          >
-            <Trash2 size={16} />
-            Delete Pass
-          </button>
-        </div>
+           <button
+             onClick={downloadQR}
+             className="w-full py-2 bg-slate-900 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors text-sm font-medium"
+           >
+             <Download size={16} />
+             Download Pass
+           </button>
+           {guest.email && (
+             <button
+               onClick={sendEmail}
+               className="w-full py-2 bg-blue-600 text-white rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors text-sm font-medium"
+             >
+               <Mail size={16} />
+               Send Pass
+             </button>
+           )}
+           <button
+             onClick={handleDelete}
+             className="w-full py-2 bg-red-50 text-red-600 rounded-lg flex items-center justify-center gap-2 hover:bg-red-100 transition-colors text-sm font-medium border border-red-100"
+           >
+             <Trash2 size={16} />
+             Delete Pass
+           </button>
+         </div>
       </div>
     </div>
   );
 };
 
 export default QRCard;
+
