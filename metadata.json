@@ -1,0 +1,7 @@
+{
+  "name": "EventGuard Pro",
+  "description": "Enterprise-grade cultural event attendance system featuring high-speed QR scanning, 2-day tracking, and duplication prevention for large-scale events.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
