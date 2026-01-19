@@ -3,6 +3,7 @@ import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Download, User, Trash2, Mail } from 'lucide-react';
 import { Guest } from '../types';
+import jsPDF from 'jspdf';
 
 interface QRCardProps {
   guest: Guest;
@@ -20,16 +21,16 @@ const QRCard: React.FC<QRCardProps> = ({ guest, onDelete }) => {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     const img = new Image();
-    
+
     img.onload = () => {
       canvas.width = 1000;
       canvas.height = 1000;
       ctx?.drawImage(img, 0, 0, 1000, 1000);
-      const pngFile = canvas.toDataURL("image/png");
-      const downloadLink = document.createElement("a");
-      downloadLink.download = `QR_${guest.id}_${guest.name.replace(/\s+/g, '_')}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
+      const imgData = canvas.toDataURL("image/png");
+
+      const pdf = new jsPDF();
+      pdf.addImage(imgData, 'PNG', 10, 10, 180, 180);
+      pdf.save(`QR_${guest.id}_${guest.name.replace(/\s+/g, '_')}.pdf`);
     };
 
     img.src = "data:image/svg+xml;base64," + btoa(svgData);
@@ -54,7 +55,7 @@ We are looking forward to welcoming you on 22nd & 23rd January, for Prerana 2026
 Date & Time: 22nd and 23rd Jan 2026, 2:30 PM Onwards.
 Venue: GITAM Bengaluru Campus
 
-Entry QR Code: Please find the attached PNG file with your QR code. Present this at the entrance.
+Entry QR Code: Please find the attached PDF file with your QR code. Present this at the entrance.
 
 Best regards,
 Event Team`);
