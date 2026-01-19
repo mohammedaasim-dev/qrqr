@@ -43,6 +43,8 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [manualGuest, setManualGuest] = useState({ id: '', name: '', email: '', phone: '', category: 'General' });
+  const [sheetId, setSheetId] = useState('');
+  const [sheetRange, setSheetRange] = useState('Sheet1!A1:E');
 
   // Initial Load
   useEffect(() => {
@@ -193,6 +195,64 @@ const App: React.FC = () => {
     setGuests(prev => [...prev, { ...manualGuest, id: manualGuest.id.trim(), name: manualGuest.name.trim(), email: manualGuest.email.trim(), phone: manualGuest.phone.trim(), category: manualGuest.category.trim() }]);
     setManualGuest({ id: '', name: '', email: '', phone: '', category: 'General' });
     alert('Guest added successfully.');
+  };
+
+  const handleImportFromSheets = async () => {
+    if (!sheetId.trim()) {
+      alert('Sheet ID is required.');
+      return;
+    }
+    if (!(import.meta as any).env.VITE_API_KEY) {
+      alert('VITE_API_KEY is required for Google Sheets import.');
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(sheetRange)}?key=${(import.meta as any).env.VITE_API_KEY}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch from Google Sheets');
+      }
+      const data = await response.json();
+      const values = data.values;
+      if (!values || values.length === 0) {
+        alert('No data found in the sheet.');
+        setIsProcessing(false);
+        return;
+      }
+      // Assume first row is headers
+      const headers = values[0].map((h: string) => h.toLowerCase().trim());
+      const idIdx = headers.findIndex((h: string) => h.includes('id') || h.includes('barcode') || h.includes('ticket'));
+      const nameIdx = headers.findIndex((h: string) => h.includes('name'));
+      const emailIdx = headers.findIndex((h: string) => h.includes('email'));
+      const phoneIdx = headers.findIndex((h: string) => h.includes('phone') || h.includes('mobile'));
+      const catIdx = headers.findIndex((h: string) => h.includes('category') || h.includes('type'));
+      const newGuests: Guest[] = [];
+      values.slice(1).forEach((row: string[]) => {
+        const id = idIdx !== -1 ? row[idIdx] : `G-${newGuests.length + 1}`;
+        const name = nameIdx !== -1 ? row[nameIdx] : `Guest ${newGuests.length + 1}`;
+        if (id && name) {
+          newGuests.push({
+            id: id.toString(),
+            name,
+            email: emailIdx !== -1 ? row[emailIdx] || '' : '',
+            phone: phoneIdx !== -1 ? row[phoneIdx] || '' : '',
+            category: catIdx !== -1 ? row[catIdx] || 'General' : 'General'
+          });
+        }
+      });
+      if (newGuests.length > 0) {
+        setGuests(prev => {
+          const existingIds = new Set(prev.map(g => g.id.toLowerCase()));
+          const unique = newGuests.filter(g => !existingIds.has(g.id.toLowerCase()));
+          return [...prev, ...unique];
+        });
+        alert(`Imported ${newGuests.length} guests from Google Sheets.`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error importing from Google Sheets. Ensure the sheet is public and the range is correct.');
+    }
+    setIsProcessing(false);
   };
 
   const handleScan = useCallback((decodedText: string): ScanResult => {
@@ -387,7 +447,7 @@ const App: React.FC = () => {
                       <>
                         <Upload className="w-12 h-12 text-slate-300 mb-4" />
                         <p className="font-bold text-slate-600">Click to upload CSV or PDF</p>
-                        <p className="text-xs text-slate-400 mt-2">Exports from Google Sheets work best</p>
+                        <p className="text-xs text-slate-400 mt-2">Exports from Google Sheets work best. PDF requires VITE_API_KEY in .env</p>
                       </>
                     )}
                   </div>
@@ -410,6 +470,18 @@ const App: React.FC = () => {
                   <p className="text-sm text-slate-400 mb-6">Database is currently holding {guests.length.toLocaleString()} entries locally. For large events, use a dedicated high-performance tablet.</p>
                   <button onClick={() => { if(window.confirm('Wipe everything?')) { storageService.clearAll(); setGuests([]); setAttendance({}); } }} className="w-full bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 border border-red-600/30">
                     <Trash2 size={18}/> Factory Reset System
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-lg mb-4">Import from Google Sheets</h3>
+                <p className="text-xs text-slate-400 mb-4">Requires VITE_API_KEY with Google Sheets API enabled. Sheet must be public.</p>
+                <div className="space-y-4">
+                  <input type="text" placeholder="Google Sheet ID" className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={sheetId} onChange={(e) => setSheetId(e.target.value)} />
+                  <input type="text" placeholder="Range (e.g. Sheet1!A1:E)" className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" value={sheetRange} onChange={(e) => setSheetRange(e.target.value)} />
+                  <button onClick={handleImportFromSheets} disabled={isProcessing} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 transition-colors disabled:opacity-50">
+                    {isProcessing ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Import from Sheets'}
                   </button>
                 </div>
               </div>
