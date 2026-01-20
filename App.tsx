@@ -31,6 +31,7 @@ import {
 import { GoogleGenAI, Type } from "@google/genai";
 import { Guest, AttendanceRecord, AppTab, ScanResult } from './types';
 import { storageService } from './services/storageService';
+import { apiService } from './services/apiService';
 import Scanner from './components/Scanner';
 import QRCard from './components/QRCard';
 
@@ -48,22 +49,28 @@ const App: React.FC = () => {
 
   // Initial Load
   useEffect(() => {
-    const storedGuests = storageService.getGuests();
-    const storedAttendance = storageService.getAttendance();
-    setGuests(storedGuests);
-    setAttendance(storedAttendance);
+    const loadData = async () => {
+      try {
+        const apiGuests = await apiService.getParticipants();
+        setGuests(apiGuests);
+      } catch (error) {
+        console.error('Failed to load guests from API, falling back to local storage:', error);
+        const storedGuests = storageService.getGuests();
+        setGuests(storedGuests);
+      }
+      const storedAttendance = storageService.getAttendance();
+      setAttendance(storedAttendance);
+    };
+    loadData();
   }, []);
 
-  // Sync to Storage
-  useEffect(() => {
-    if (guests.length > 0) storageService.saveGuests(guests);
-  }, [guests]);
+  // Note: Guests are now synced to server via API calls, not local storage
 
   useEffect(() => {
     storageService.saveAttendance(attendance);
   }, [attendance]);
 
-  const processCsv = (text: string) => {
+  const processCsv = async (text: string) => {
     const lines = text.split(/\r?\n/).filter(line => line.trim());
     if (lines.length === 0) return;
 
@@ -97,13 +104,15 @@ const App: React.FC = () => {
     });
 
     if (newGuests.length > 0) {
-      setGuests(prev => {
-        const existingIds = new Set(prev.map(g => g.id.toLowerCase()));
-        const uniqueNew = newGuests.filter(g => !existingIds.has(g.id.toLowerCase()));
-        return [...prev, ...uniqueNew];
-      });
-      alert(`Successfully imported ${newGuests.length} participants.`);
-      setActiveTab('guests');
+      try {
+        const createdGuests = await apiService.bulkCreateParticipants(newGuests);
+        setGuests(prev => [...prev, ...createdGuests]);
+        alert(`Successfully imported ${createdGuests.length} participants.`);
+        setActiveTab('guests');
+      } catch (error) {
+        console.error('Failed to import participants:', error);
+        alert('Failed to import participants. Please try again.');
+      }
     }
   };
 

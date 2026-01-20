@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { emailQueue } from './workers/emailWorker';
+import participantsRouter from './routes/participants';
+import campaignsRouter from './routes/campaigns';
 
 // Load environment variables
 dotenv.config();
@@ -24,27 +26,9 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Participants routes will be added here
-app.get('/api/participants', (req, res) => {
-  // Placeholder - will implement
-  res.json([]);
-});
-
-app.post('/api/participants', (req, res) => {
-  // Placeholder - will implement
-  res.status(201).json({ message: 'Participant created' });
-});
-
-// Campaigns routes will be added here
-app.get('/api/campaigns', (req, res) => {
-  // Placeholder - will implement
-  res.json([]);
-});
-
-app.post('/api/campaigns', (req, res) => {
-  // Placeholder - will implement
-  res.status(201).json({ message: 'Campaign created' });
-});
+// API Routes
+app.use('/api/participants', participantsRouter);
+app.use('/api/campaigns', campaignsRouter);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
